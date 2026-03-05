@@ -14,11 +14,11 @@ router.get("/", async (_req, res) => {
       name: teams.name,
       description: teams.description,
       color: teams.color,
-      memberCount: sql<number>`(SELECT COUNT(*) FROM members WHERE team_id = teams.id AND is_active = true)`,
-      projectCount: sql<number>`(SELECT COUNT(*) FROM projects WHERE team_id = teams.id)`,
-      activeProjectCount: sql<number>`(SELECT COUNT(*) FROM projects WHERE team_id = teams.id AND status = 'active')`,
-      totalTasks: sql<number>`(SELECT COUNT(*) FROM tasks t JOIN projects p ON t.project_id = p.id WHERE p.team_id = teams.id)`,
-      completedTasks: sql<number>`(SELECT COUNT(*) FROM tasks t JOIN projects p ON t.project_id = p.id WHERE p.team_id = teams.id AND t.status = '완료')`,
+      memberCount: sql<number>`(SELECT COUNT(*) FROM tp_members WHERE team_id = tp_teams.id AND is_active = true)`,
+      projectCount: sql<number>`(SELECT COUNT(*) FROM tp_projects WHERE team_id = tp_teams.id)`,
+      activeProjectCount: sql<number>`(SELECT COUNT(*) FROM tp_projects WHERE team_id = tp_teams.id AND status = 'active')`,
+      totalTasks: sql<number>`(SELECT COUNT(*) FROM tp_tasks t JOIN tp_projects p ON t.project_id = p.id WHERE p.team_id = tp_teams.id)`,
+      completedTasks: sql<number>`(SELECT COUNT(*) FROM tp_tasks t JOIN tp_projects p ON t.project_id = p.id WHERE p.team_id = tp_teams.id AND t.status = '완료')`,
     })
     .from(teams);
 
@@ -48,8 +48,8 @@ router.get("/:teamId", async (req, res) => {
       status: projects.status,
       startDate: projects.startDate,
       endDate: projects.endDate,
-      totalTasks: sql<number>`(SELECT COUNT(*) FROM tasks WHERE project_id = projects.id)`,
-      completedTasks: sql<number>`(SELECT COUNT(*) FROM tasks WHERE project_id = projects.id AND status = '완료')`,
+      totalTasks: sql<number>`(SELECT COUNT(*) FROM tp_tasks WHERE project_id = tp_projects.id)`,
+      completedTasks: sql<number>`(SELECT COUNT(*) FROM tp_tasks WHERE project_id = tp_projects.id AND status = '완료')`,
     })
     .from(projects)
     .where(eq(projects.teamId, id));

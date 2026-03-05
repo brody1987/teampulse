@@ -26,16 +26,16 @@ router.get("/", async (req, res) => {
       createdAt: projects.createdAt,
       teamName: teams.name,
       teamColor: teams.color,
-      totalTasks: sql<number>`(SELECT COUNT(*) FROM tasks WHERE project_id = projects.id)`,
-      completedTasks: sql<number>`(SELECT COUNT(*) FROM tasks WHERE project_id = projects.id AND status = '완료')`,
+      totalTasks: sql<number>`(SELECT COUNT(*) FROM tp_tasks WHERE project_id = tp_projects.id)`,
+      completedTasks: sql<number>`(SELECT COUNT(*) FROM tp_tasks WHERE project_id = tp_projects.id AND status = '완료')`,
       isPinned: projects.isPinned,
       memberNames: sql<string>`COALESCE((
         SELECT string_agg(DISTINCT name, ',') FROM (
-          SELECT m.name FROM members m WHERE m.team_id = projects.team_id AND m.is_active = true
+          SELECT m.name FROM tp_members m WHERE m.team_id = tp_projects.team_id AND m.is_active = true
           UNION
-          SELECT m.name FROM members m WHERE m.id = projects.owner_id
+          SELECT m.name FROM tp_members m WHERE m.id = tp_projects.owner_id
           UNION
-          SELECT m.name FROM members m INNER JOIN project_members pm ON pm.member_id = m.id WHERE pm.project_id = projects.id
+          SELECT m.name FROM tp_members m INNER JOIN tp_project_members pm ON pm.member_id = m.id WHERE pm.project_id = tp_projects.id
         ) sub
       ), '')`,
     })
@@ -46,7 +46,7 @@ router.get("/", async (req, res) => {
   if (teamId) query = query.where(eq(projects.teamId, parseInt(teamId)));
   if (status) query = query.where(eq(projects.status, status as any));
 
-  const result = await query.orderBy(sql`is_pinned DESC, projects.created_at DESC`);
+  const result = await query.orderBy(sql`is_pinned DESC, tp_projects.created_at DESC`);
   res.json(result);
 });
 

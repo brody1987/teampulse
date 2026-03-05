@@ -1,6 +1,6 @@
 import { pgTable, serial, text, integer, real, boolean, timestamp, index, varchar } from "drizzle-orm/pg-core";
 
-export const teams = pgTable("teams", {
+export const teams = pgTable("tp_teams", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   description: text("description"),
@@ -8,7 +8,7 @@ export const teams = pgTable("teams", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const members = pgTable("members", {
+export const members = pgTable("tp_members", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   role: text("role"),
@@ -19,10 +19,10 @@ export const members = pgTable("members", {
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
-  index("idx_members_team_id").on(table.teamId),
+  index("idx_tp_members_team_id").on(table.teamId),
 ]);
 
-export const projects = pgTable("projects", {
+export const projects = pgTable("tp_projects", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   description: text("description"),
@@ -36,29 +36,29 @@ export const projects = pgTable("projects", {
   endDate: text("end_date"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
-  index("idx_projects_team_id").on(table.teamId),
-  index("idx_projects_status").on(table.status),
+  index("idx_tp_projects_team_id").on(table.teamId),
+  index("idx_tp_projects_status").on(table.status),
 ]);
 
-export const projectMembers = pgTable("project_members", {
+export const projectMembers = pgTable("tp_project_members", {
   id: serial("id").primaryKey(),
   projectId: integer("project_id").references(() => projects.id).notNull(),
   memberId: integer("member_id").references(() => members.id).notNull(),
 }, (table) => [
-  index("idx_project_members_project_id").on(table.projectId),
-  index("idx_project_members_member_id").on(table.memberId),
+  index("idx_tp_project_members_project_id").on(table.projectId),
+  index("idx_tp_project_members_member_id").on(table.memberId),
 ]);
 
-export const projectMetrics = pgTable("project_metrics", {
+export const projectMetrics = pgTable("tp_project_metrics", {
   id: serial("id").primaryKey(),
   projectId: integer("project_id").references(() => projects.id).notNull(),
   label: text("label").notNull(),
   value: real("value").notNull().default(0),
 }, (table) => [
-  index("idx_project_metrics_project_id").on(table.projectId),
+  index("idx_tp_project_metrics_project_id").on(table.projectId),
 ]);
 
-export const tasks = pgTable("tasks", {
+export const tasks = pgTable("tp_tasks", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   description: text("description"),
@@ -71,14 +71,14 @@ export const tasks = pgTable("tasks", {
   completedAt: text("completed_at"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
-  index("idx_tasks_project_id").on(table.projectId),
-  index("idx_tasks_status").on(table.status),
-  index("idx_tasks_assignee_id").on(table.assigneeId),
-  index("idx_tasks_completed_at").on(table.completedAt),
-  index("idx_tasks_project_status").on(table.projectId, table.status),
+  index("idx_tp_tasks_project_id").on(table.projectId),
+  index("idx_tp_tasks_status").on(table.status),
+  index("idx_tp_tasks_assignee_id").on(table.assigneeId),
+  index("idx_tp_tasks_completed_at").on(table.completedAt),
+  index("idx_tp_tasks_project_status").on(table.projectId, table.status),
 ]);
 
-export const evaluations = pgTable("evaluations", {
+export const evaluations = pgTable("tp_evaluations", {
   id: serial("id").primaryKey(),
   taskId: integer("task_id").references(() => tasks.id),
   memberId: integer("member_id").references(() => members.id),
@@ -89,11 +89,11 @@ export const evaluations = pgTable("evaluations", {
   comment: text("comment"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
-  index("idx_evaluations_member_id").on(table.memberId),
-  index("idx_evaluations_task_id").on(table.taskId),
+  index("idx_tp_evaluations_member_id").on(table.memberId),
+  index("idx_tp_evaluations_task_id").on(table.taskId),
 ]);
 
-export const schedules = pgTable("schedules", {
+export const schedules = pgTable("tp_schedules", {
   id: serial("id").primaryKey(),
   date: text("date").notNull(),
   time: text("time").notNull(),
@@ -102,10 +102,10 @@ export const schedules = pgTable("schedules", {
   color: text("color").notNull().default("#3B82F6"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
-  index("idx_schedules_date").on(table.date),
+  index("idx_tp_schedules_date").on(table.date),
 ]);
 
-export const attachments = pgTable("attachments", {
+export const attachments = pgTable("tp_attachments", {
   id: serial("id").primaryKey(),
   entityType: text("entity_type").notNull(),
   entityId: integer("entity_id").notNull(),
@@ -115,10 +115,10 @@ export const attachments = pgTable("attachments", {
   mimeType: text("mime_type").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
-  index("idx_attachments_entity").on(table.entityType, table.entityId),
+  index("idx_tp_attachments_entity").on(table.entityType, table.entityId),
 ]);
 
-export const activityLog = pgTable("activity_log", {
+export const activityLog = pgTable("tp_activity_log", {
   id: serial("id").primaryKey(),
   type: text("type").notNull(),
   entityType: text("entity_type").notNull(),
@@ -126,5 +126,5 @@ export const activityLog = pgTable("activity_log", {
   description: text("description").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
-  index("idx_activity_log_created_at").on(table.createdAt),
+  index("idx_tp_activity_log_created_at").on(table.createdAt),
 ]);

@@ -18,14 +18,14 @@ router.get("/stats", async (_req, res) => {
     waitingtasks: number;
   }>(sql`
     SELECT
-      (SELECT COUNT(*) FROM members WHERE is_active = true)::int AS totalmembers,
-      (SELECT COUNT(*) FROM projects)::int AS totalprojects,
-      (SELECT COUNT(*) FROM projects WHERE status = 'active')::int AS activeprojects,
-      (SELECT COUNT(*) FROM tasks)::int AS totaltasks,
-      (SELECT COUNT(*) FROM tasks WHERE status = '완료')::int AS completedtasks,
-      (SELECT COUNT(*) FROM tasks WHERE status = '진행중')::int AS inprogresstasks,
-      (SELECT COUNT(*) FROM tasks WHERE status = '검토중')::int AS reviewtasks,
-      (SELECT COUNT(*) FROM tasks WHERE status = '대기')::int AS waitingtasks
+      (SELECT COUNT(*) FROM tp_members WHERE is_active = true)::int AS totalmembers,
+      (SELECT COUNT(*) FROM tp_projects)::int AS totalprojects,
+      (SELECT COUNT(*) FROM tp_projects WHERE status = 'active')::int AS activeprojects,
+      (SELECT COUNT(*) FROM tp_tasks)::int AS totaltasks,
+      (SELECT COUNT(*) FROM tp_tasks WHERE status = '완료')::int AS completedtasks,
+      (SELECT COUNT(*) FROM tp_tasks WHERE status = '진행중')::int AS inprogresstasks,
+      (SELECT COUNT(*) FROM tp_tasks WHERE status = '검토중')::int AS reviewtasks,
+      (SELECT COUNT(*) FROM tp_tasks WHERE status = '대기')::int AS waitingtasks
   `);
 
   const teamProgress = await db
@@ -33,8 +33,8 @@ router.get("/stats", async (_req, res) => {
       id: teams.id,
       name: teams.name,
       color: teams.color,
-      totalTasks: sql<number>`(SELECT COUNT(*) FROM tasks t JOIN projects p ON t.project_id = p.id WHERE p.team_id = teams.id)`,
-      completedTasks: sql<number>`(SELECT COUNT(*) FROM tasks t JOIN projects p ON t.project_id = p.id WHERE p.team_id = teams.id AND t.status = '완료')`,
+      totalTasks: sql<number>`(SELECT COUNT(*) FROM tp_tasks t JOIN tp_projects p ON t.project_id = p.id WHERE p.team_id = tp_teams.id)`,
+      completedTasks: sql<number>`(SELECT COUNT(*) FROM tp_tasks t JOIN tp_projects p ON t.project_id = p.id WHERE p.team_id = tp_teams.id AND t.status = '완료')`,
     })
     .from(teams);
 
@@ -46,7 +46,7 @@ router.get("/stats", async (_req, res) => {
     SELECT
       date_trunc('week', completed_at::timestamp)::date::text AS weekstart,
       COUNT(*)::int AS count
-    FROM tasks
+    FROM tp_tasks
     WHERE completed_at >= ${eightWeeksAgo.toISOString()}
       AND completed_at IS NOT NULL
     GROUP BY date_trunc('week', completed_at::timestamp)
