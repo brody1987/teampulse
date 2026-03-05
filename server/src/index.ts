@@ -4,6 +4,7 @@ dns.setDefaultResultOrder("ipv4first");
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import compression from "compression";
 
 import teamsRouter from "./routes/teams";
 import membersRouter from "./routes/members";
@@ -24,6 +25,7 @@ app.use(cors({
   origin: corsOrigin.startsWith("http") ? corsOrigin : `https://${corsOrigin}`,
   credentials: true,
 }));
+app.use(compression());
 app.use(express.json({ limit: "10mb" }));
 
 // Routes

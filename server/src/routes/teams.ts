@@ -8,19 +8,29 @@ const router = Router();
 
 // GET /api/teams
 router.get("/", async (_req, res) => {
-  const result = await db
-    .select({
-      id: teams.id,
-      name: teams.name,
-      description: teams.description,
-      color: teams.color,
-      memberCount: sql<number>`(SELECT COUNT(*) FROM tp_members WHERE team_id = tp_teams.id AND is_active = true)`,
-      projectCount: sql<number>`(SELECT COUNT(*) FROM tp_projects WHERE team_id = tp_teams.id)`,
-      activeProjectCount: sql<number>`(SELECT COUNT(*) FROM tp_projects WHERE team_id = tp_teams.id AND status = 'active')`,
-      totalTasks: sql<number>`(SELECT COUNT(*) FROM tp_tasks t JOIN tp_projects p ON t.project_id = p.id WHERE p.team_id = tp_teams.id)`,
-      completedTasks: sql<number>`(SELECT COUNT(*) FROM tp_tasks t JOIN tp_projects p ON t.project_id = p.id WHERE p.team_id = tp_teams.id AND t.status = '완료')`,
-    })
-    .from(teams);
+  const result = await db.execute(sql`
+    SELECT t.id, t.name, t.description, t.color,
+      COALESCE(mc.cnt, 0)::int AS "memberCount",
+      COALESCE(pc.total, 0)::int AS "projectCount",
+      COALESCE(pc.active, 0)::int AS "activeProjectCount",
+      COALESCE(tc.total, 0)::int AS "totalTasks",
+      COALESCE(tc.completed, 0)::int AS "completedTasks"
+    FROM tp_teams t
+    LEFT JOIN (
+      SELECT team_id, COUNT(*)::int AS cnt FROM tp_members WHERE is_active = true GROUP BY team_id
+    ) mc ON mc.team_id = t.id
+    LEFT JOIN (
+      SELECT team_id, COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE status = 'active')::int AS active
+      FROM tp_projects GROUP BY team_id
+    ) pc ON pc.team_id = t.id
+    LEFT JOIN (
+      SELECT p.team_id, COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE tk.status = '완료')::int AS completed
+      FROM tp_tasks tk JOIN tp_projects p ON tk.project_id = p.id
+      GROUP BY p.team_id
+    ) tc ON tc.team_id = t.id
+  `);
 
   res.json(result);
 });

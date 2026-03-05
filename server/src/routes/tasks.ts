@@ -99,8 +99,12 @@ router.post("/reorder", async (req, res) => {
     await db.update(tasks).set(updates).where(eq(tasks.id, taskId));
   }
 
-  for (const item of newOrder) {
-    await db.update(tasks).set({ sortOrder: item.sortOrder }).where(eq(tasks.id, item.id));
+  if (newOrder.length > 0) {
+    const cases = newOrder.map((item) => `WHEN ${item.id} THEN ${item.sortOrder}`).join(" ");
+    const ids = newOrder.map((item) => item.id).join(",");
+    await db.execute(sql.raw(
+      `UPDATE tp_tasks SET sort_order = CASE id ${cases} END WHERE id IN (${ids})`
+    ));
   }
 
   res.json({ success: true });

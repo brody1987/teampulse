@@ -11,42 +11,37 @@ router.get("/", async (req, res) => {
   const teamId = req.query.teamId as string | undefined;
   const status = req.query.status as string | undefined;
 
-  let query = db
-    .select({
-      id: projects.id,
-      name: projects.name,
-      description: projects.description,
-      content: projects.content,
-      type: projects.type,
-      teamId: projects.teamId,
-      ownerId: projects.ownerId,
-      status: projects.status,
-      startDate: projects.startDate,
-      endDate: projects.endDate,
-      createdAt: projects.createdAt,
-      teamName: teams.name,
-      teamColor: teams.color,
-      totalTasks: sql<number>`(SELECT COUNT(*) FROM tp_tasks WHERE project_id = tp_projects.id)`,
-      completedTasks: sql<number>`(SELECT COUNT(*) FROM tp_tasks WHERE project_id = tp_projects.id AND status = '완료')`,
-      isPinned: projects.isPinned,
-      memberNames: sql<string>`COALESCE((
-        SELECT string_agg(DISTINCT name, ',') FROM (
-          SELECT m.name FROM tp_members m WHERE m.team_id = tp_projects.team_id AND m.is_active = true
-          UNION
-          SELECT m.name FROM tp_members m WHERE m.id = tp_projects.owner_id
-          UNION
-          SELECT m.name FROM tp_members m INNER JOIN tp_project_members pm ON pm.member_id = m.id WHERE pm.project_id = tp_projects.id
-        ) sub
-      ), '')`,
-    })
-    .from(projects)
-    .leftJoin(teams, eq(projects.teamId, teams.id))
-    .$dynamic();
+  const conditions: string[] = [];
+  if (teamId) conditions.push(`p.team_id = ${parseInt(teamId)}`);
+  if (status) conditions.push(`p.status = '${status.replace(/'/g, "''")}'`);
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
-  if (teamId) query = query.where(eq(projects.teamId, parseInt(teamId)));
-  if (status) query = query.where(eq(projects.status, status as any));
+  const result = await db.execute(sql.raw(`
+    SELECT p.id, p.name, p.description, p.content, p.type,
+      p.team_id AS "teamId", p.owner_id AS "ownerId", p.status,
+      p.start_date AS "startDate", p.end_date AS "endDate",
+      p.created_at AS "createdAt", p.is_pinned AS "isPinned",
+      t.name AS "teamName", t.color AS "teamColor",
+      COALESCE(tc.total, 0)::int AS "totalTasks",
+      COALESCE(tc.completed, 0)::int AS "completedTasks",
+      COALESCE(mn.names, '') AS "memberNames"
+    FROM tp_projects p
+    LEFT JOIN tp_teams t ON p.team_id = t.id
+    LEFT JOIN (
+      SELECT project_id, COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE status = '완료')::int AS completed
+      FROM tp_tasks GROUP BY project_id
+    ) tc ON tc.project_id = p.id
+    LEFT JOIN (
+      SELECT pm.project_id, string_agg(DISTINCT m.name, ',') AS names
+      FROM tp_project_members pm
+      JOIN tp_members m ON m.id = pm.member_id
+      GROUP BY pm.project_id
+    ) mn ON mn.project_id = p.id
+    ${whereClause}
+    ORDER BY p.is_pinned DESC, p.created_at DESC
+  `));
 
-  const result = await query.orderBy(sql`is_pinned DESC, tp_projects.created_at DESC`);
   res.json(result);
 });
 
@@ -57,20 +52,17 @@ router.post("/", async (req, res) => {
   const [result] = await db.insert(projects).values(projectData).returning();
 
   if (memberIds && memberIds.length > 0) {
-    for (const memberId of memberIds) {
-      await db.insert(projectMembers).values({ projectId: result.id, memberId });
-    }
+    await db.insert(projectMembers).values(
+      memberIds.map((memberId: number) => ({ projectId: result.id, memberId }))
+    );
   }
 
   if (metrics && metrics.length > 0) {
-    for (const metric of metrics) {
-      if (metric.label.trim()) {
-        await db.insert(projectMetrics).values({
-          projectId: result.id,
-          label: metric.label,
-          value: metric.value || 0,
-        });
-      }
+    const validMetrics = metrics.filter((m: any) => m.label.trim());
+    if (validMetrics.length > 0) {
+      await db.insert(projectMetrics).values(
+        validMetrics.map((m: any) => ({ projectId: result.id, label: m.label, value: m.value || 0 }))
+      );
     }
   }
 
@@ -82,6 +74,7 @@ router.post("/", async (req, res) => {
 router.get("/:id", async (req, res) => {
   const id = parseInt(req.params.id);
 
+  // Fetch project with owner name in single query
   const [project] = await db
     .select({
       id: projects.id,
@@ -97,6 +90,8 @@ router.get("/:id", async (req, res) => {
       createdAt: projects.createdAt,
       teamName: teams.name,
       teamColor: teams.color,
+      isPinned: projects.isPinned,
+      ownerName: sql<string | null>`(SELECT name FROM tp_members WHERE id = tp_projects.owner_id)`,
     })
     .from(projects)
     .leftJoin(teams, eq(projects.teamId, teams.id))
@@ -104,49 +99,40 @@ router.get("/:id", async (req, res) => {
 
   if (!project) return res.status(404).json({ error: "Not found" });
 
-  const projectTasks = await db
-    .select({
-      id: tasks.id,
-      title: tasks.title,
-      description: tasks.description,
-      status: tasks.status,
-      priority: tasks.priority,
-      dueDate: tasks.dueDate,
-      sortOrder: tasks.sortOrder,
-      assigneeId: tasks.assigneeId,
-      completedAt: tasks.completedAt,
-      createdAt: tasks.createdAt,
-      assigneeName: members.name,
-    })
-    .from(tasks)
-    .leftJoin(members, eq(tasks.assigneeId, members.id))
-    .where(eq(tasks.projectId, id))
-    .orderBy(tasks.sortOrder);
-
-  const pmRows = await db
-    .select({
-      id: projectMembers.id,
-      memberId: projectMembers.memberId,
-      memberName: members.name,
-    })
-    .from(projectMembers)
-    .leftJoin(members, eq(projectMembers.memberId, members.id))
-    .where(eq(projectMembers.projectId, id));
-
-  const metricsRows = await db
-    .select()
-    .from(projectMetrics)
-    .where(eq(projectMetrics.projectId, id));
-
-  let ownerName: string | null = null;
-  if (project.ownerId) {
-    const [owner] = await db.select({ name: members.name }).from(members).where(eq(members.id, project.ownerId));
-    ownerName = owner?.name || null;
-  }
+  // Run remaining queries in parallel
+  const [projectTasks, pmRows, metricsRows] = await Promise.all([
+    db
+      .select({
+        id: tasks.id,
+        title: tasks.title,
+        description: tasks.description,
+        status: tasks.status,
+        priority: tasks.priority,
+        dueDate: tasks.dueDate,
+        sortOrder: tasks.sortOrder,
+        assigneeId: tasks.assigneeId,
+        completedAt: tasks.completedAt,
+        createdAt: tasks.createdAt,
+        assigneeName: members.name,
+      })
+      .from(tasks)
+      .leftJoin(members, eq(tasks.assigneeId, members.id))
+      .where(eq(tasks.projectId, id))
+      .orderBy(tasks.sortOrder),
+    db
+      .select({
+        id: projectMembers.id,
+        memberId: projectMembers.memberId,
+        memberName: members.name,
+      })
+      .from(projectMembers)
+      .leftJoin(members, eq(projectMembers.memberId, members.id))
+      .where(eq(projectMembers.projectId, id)),
+    db.select().from(projectMetrics).where(eq(projectMetrics.projectId, id)),
+  ]);
 
   res.json({
     ...project,
-    ownerName,
     tasks: projectTasks,
     members: pmRows,
     metrics: metricsRows,
@@ -162,21 +148,18 @@ router.put("/:id", async (req, res) => {
 
   await db.delete(projectMembers).where(eq(projectMembers.projectId, id));
   if (memberIds && memberIds.length > 0) {
-    for (const memberId of memberIds) {
-      await db.insert(projectMembers).values({ projectId: id, memberId });
-    }
+    await db.insert(projectMembers).values(
+      memberIds.map((memberId: number) => ({ projectId: id, memberId }))
+    );
   }
 
   await db.delete(projectMetrics).where(eq(projectMetrics.projectId, id));
   if (metrics && metrics.length > 0) {
-    for (const metric of metrics) {
-      if (metric.label.trim()) {
-        await db.insert(projectMetrics).values({
-          projectId: id,
-          label: metric.label,
-          value: metric.value || 0,
-        });
-      }
+    const validMetrics = metrics.filter((m: any) => m.label.trim());
+    if (validMetrics.length > 0) {
+      await db.insert(projectMetrics).values(
+        validMetrics.map((m: any) => ({ projectId: id, label: m.label, value: m.value || 0 }))
+      );
     }
   }
 
