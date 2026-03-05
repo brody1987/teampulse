@@ -43,6 +43,7 @@ export function FileAttachment({ entityType, entityId, onPendingFilesChange }: F
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadingFiles, setUploadingFiles] = useState<File[]>([]);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   const { data: attachments = [], mutate } = useSWR<Attachment[]>(
@@ -64,6 +65,7 @@ export function FileAttachment({ entityType, entityId, onPendingFilesChange }: F
       }
 
       setUploading(true);
+      setUploadingFiles(files);
       try {
         const formData = new FormData();
         formData.append("entityType", entityType);
@@ -80,6 +82,7 @@ export function FileAttachment({ entityType, entityId, onPendingFilesChange }: F
         toast.error("파일 업로드에 실패했습니다.");
       } finally {
         setUploading(false);
+        setUploadingFiles([]);
       }
     },
     [entityId, entityType, mutate]
@@ -127,6 +130,7 @@ export function FileAttachment({ entityType, entityId, onPendingFilesChange }: F
 
   const allFiles = [
     ...attachments.map((a) => ({ type: "saved" as const, data: a })),
+    ...uploadingFiles.map((f, i) => ({ type: "uploading" as const, data: f, index: i })),
     ...pendingFiles.map((f, i) => ({ type: "pending" as const, data: f, index: i })),
   ];
 
@@ -188,6 +192,23 @@ export function FileAttachment({ entityType, entityId, onPendingFilesChange }: F
                   >
                     <X className="h-3.5 w-3.5 text-slate-400 hover:text-red-500" />
                   </button>
+                </div>
+              );
+            } else if (item.type === "uploading") {
+              const f = item.data as File;
+              const Icon = getFileIcon(f.type);
+              return (
+                <div
+                  key={`uploading-${idx}`}
+                  className="flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-md"
+                >
+                  <Icon className="h-4 w-4 text-blue-500 shrink-0" />
+                  <span className="text-sm text-slate-700 truncate flex-1">{f.name}</span>
+                  <span className="text-xs text-blue-500 shrink-0 flex items-center gap-1">
+                    <span className="inline-block h-3 w-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                    업로드중
+                  </span>
+                  <span className="text-xs text-slate-400 shrink-0">{formatFileSize(f.size)}</span>
                 </div>
               );
             } else {

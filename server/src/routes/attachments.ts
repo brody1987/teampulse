@@ -40,7 +40,9 @@ router.post("/", upload.array("files"), async (req, res) => {
   const results = [];
 
   for (const file of files) {
-    const ext = path.extname(file.originalname);
+    // Fix multer latin1 encoding for non-ASCII filenames (e.g. Korean)
+    const originalName = Buffer.from(file.originalname, "latin1").toString("utf8");
+    const ext = path.extname(originalName);
     const fileName = `${randomUUID()}${ext}`;
     const storagePath = `${entityType}/${entityId}/${fileName}`;
 
@@ -61,7 +63,7 @@ router.post("/", upload.array("files"), async (req, res) => {
         entityType,
         entityId,
         fileName: storagePath,
-        originalName: file.originalname,
+        originalName,
         fileSize: file.size,
         mimeType: file.mimetype || "application/octet-stream",
       })
