@@ -39,6 +39,12 @@ app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
 });
 
+// Global error handler
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error("Unhandled error:", err.message, err.cause || "");
+  res.status(500).json({ error: err.message });
+});
+
 app.listen(PORT, () => {
   console.log(`TeamPulse API server running on port ${PORT}`);
 });

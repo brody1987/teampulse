@@ -7,6 +7,7 @@ const router = Router();
 
 // GET /api/dashboard/stats
 router.get("/stats", async (_req, res) => {
+  try {
   const [counts] = await db.execute<{
     totalmembers: number;
     totalprojects: number;
@@ -91,6 +92,10 @@ router.get("/stats", async (_req, res) => {
     teamProgress,
     completionTrend,
   });
+  } catch (err: any) {
+    console.error("Dashboard error:", err.cause?.message || err.message);
+    res.status(500).json({ error: err.cause?.message || err.message });
+  }
 });
 
 export default router;
