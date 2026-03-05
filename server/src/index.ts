@@ -1,0 +1,43 @@
+import "dotenv/config";
+import express from "express";
+import cors from "cors";
+
+import teamsRouter from "./routes/teams";
+import membersRouter from "./routes/members";
+import projectsRouter from "./routes/projects";
+import tasksRouter from "./routes/tasks";
+import evaluationsRouter from "./routes/evaluations";
+import schedulesRouter from "./routes/schedules";
+import attachmentsRouter from "./routes/attachments";
+import activityRouter from "./routes/activity";
+import dashboardRouter from "./routes/dashboard";
+
+const app = express();
+const PORT = parseInt(process.env.PORT || "4000");
+
+// Middleware
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || "http://localhost:3000",
+  credentials: true,
+}));
+app.use(express.json({ limit: "10mb" }));
+
+// Routes
+app.use("/api/teams", teamsRouter);
+app.use("/api/members", membersRouter);
+app.use("/api/projects", projectsRouter);
+app.use("/api/tasks", tasksRouter);
+app.use("/api/evaluations", evaluationsRouter);
+app.use("/api/schedules", schedulesRouter);
+app.use("/api/attachments", attachmentsRouter);
+app.use("/api/activity", activityRouter);
+app.use("/api/dashboard", dashboardRouter);
+
+// Health check
+app.get("/health", (_req, res) => {
+  res.json({ status: "ok" });
+});
+
+app.listen(PORT, () => {
+  console.log(`TeamPulse API server running on port ${PORT}`);
+});
