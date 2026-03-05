@@ -1,13 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import useSWR from "swr";
 import { fetcher, API_URL } from "@/lib/fetcher";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Users, FolderKanban, TrendingUp, Trash2 } from "lucide-react";
+import { Users, FolderKanban, TrendingUp, Trash2, Plus, Pencil } from "lucide-react";
 import { toast } from "sonner";
+import { TeamDialog } from "@/components/team-dialog";
 
 interface Team {
   id: number;
@@ -23,6 +25,8 @@ interface Team {
 
 export default function TeamsPage() {
   const { data: teams, isLoading, mutate } = useSWR<Team[]>("/api/teams", fetcher);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editTeam, setEditTeam] = useState<Team | null>(null);
 
   const handleDelete = async (e: React.MouseEvent, team: Team) => {
     e.preventDefault();
@@ -38,13 +42,26 @@ export default function TeamsPage() {
     }
   };
 
+  const handleEdit = (e: React.MouseEvent, team: Team) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setEditTeam(team);
+    setDialogOpen(true);
+  };
+
   if (isLoading) return <div className="animate-pulse space-y-4"><div className="h-8 w-48 bg-slate-200 rounded" /><div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">{[...Array(5)].map((_, i) => <div key={i} className="h-48 bg-slate-200 rounded-lg" />)}</div></div>;
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-900">팀 관리</h1>
-        <p className="text-slate-500 mt-1">{teams?.length || 0}개 팀의 현황을 한눈에 확인하세요</p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">팀 관리</h1>
+          <p className="text-slate-500 mt-1">{teams?.length || 0}개 팀의 현황을 한눈에 확인하세요</p>
+        </div>
+        <Button onClick={() => { setEditTeam(null); setDialogOpen(true); }}>
+          <Plus className="h-4 w-4 mr-1.5" />
+          팀 추가
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -58,6 +75,14 @@ export default function TeamsPage() {
                     <CardTitle className="text-lg">{team.name}</CardTitle>
                     <div className="flex items-center gap-2">
                       <Badge variant="secondary">{team.activeProjectCount}개 프로젝트</Badge>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-blue-500"
+                        onClick={(e) => handleEdit(e, team)}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon-xs"
@@ -103,6 +128,13 @@ export default function TeamsPage() {
           );
         })}
       </div>
+
+      <TeamDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        team={editTeam}
+        onSuccess={() => mutate()}
+      />
     </div>
   );
 }

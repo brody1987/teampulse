@@ -21,6 +21,7 @@ interface MemberDialogProps {
     position: string;
     email: string;
     phone: string;
+    isActive?: boolean;
   } | null;
   onSuccess: () => void;
 }
@@ -34,6 +35,7 @@ export function MemberDialog({ open, onOpenChange, member, onSuccess }: MemberDi
     position: "",
     email: "",
     phone: "",
+    isActive: true,
   });
   const [saving, setSaving] = useState(false);
 
@@ -46,9 +48,10 @@ export function MemberDialog({ open, onOpenChange, member, onSuccess }: MemberDi
         position: member.position || "",
         email: member.email || "",
         phone: member.phone || "",
+        isActive: member.isActive !== false,
       });
     } else {
-      setForm({ name: "", role: "", teamId: "", position: "", email: "", phone: "" });
+      setForm({ name: "", role: "", teamId: "", position: "", email: "", phone: "", isActive: true });
     }
   }, [member, open]);
 
@@ -116,6 +119,20 @@ export function MemberDialog({ open, onOpenChange, member, onSuccess }: MemberDi
             <Label>전화번호</Label>
             <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="010-0000-0000" />
           </div>
+          {member && (
+            <div className="flex items-center justify-between">
+              <Label>활성 상태</Label>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={form.isActive}
+                onClick={() => setForm({ ...form, isActive: !form.isActive })}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${form.isActive ? "bg-blue-600" : "bg-slate-200"}`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${form.isActive ? "translate-x-6" : "translate-x-1"}`} />
+              </button>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>취소</Button>
